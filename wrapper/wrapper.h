@@ -1,5 +1,6 @@
 #include <exception>
 #include <string>
+#include <vector>
 
 namespace NativeSoundPlayer {
     struct DeviceOption {
@@ -11,7 +12,13 @@ namespace NativeSoundPlayer {
         DeviceOption output;
     };
 
+    struct Device {
+        std::wstring id;
+        std::wstring name;
+    };
+
     void Init();
+    void GetDevices(std::vector<Device>& devices);
     void Play(const std::wstring& filename, const PlaySoundOption& option);
 
     class RuntimeError : std::exception {

@@ -2,6 +2,8 @@
 
 #define UNICODE
 
+#include <algorithm>
+#include <iterator>
 #include <comdef.h>
 #include <wrl/client.h>
 #include <objbase.h>
@@ -29,6 +31,80 @@ namespace NativeSoundPlayer {
     }
 
     namespace Win {
+        ComPtr<IMMDeviceCollection> CreateAudioEndpointCollection() {
+            ComPtr<IMMDeviceEnumerator> enumerator;
+            tif(CoCreateInstance(
+                __uuidof(MMDeviceEnumerator),
+                nullptr,
+                CLSCTX_INPROC_SERVER,
+                IID_PPV_ARGS(&enumerator)
+            ));
+
+            ComPtr<IMMDeviceCollection> collection;
+            tif(enumerator->EnumAudioEndpoints(
+                EDataFlow::eRender,
+                DEVICE_STATE_ACTIVE,
+                &collection
+            ));
+
+            return collection;
+        }
+
+        void CreateDeviceVector(
+            vector< ComPtr<IMMDevice> >& devices
+        ) {
+            const auto collection = CreateAudioEndpointCollection();
+
+            UINT count;
+            tif(collection->GetCount(&count));
+
+            devices.clear();
+            devices.reserve(count);
+            for (UINT i = 0; i < count; i++) {
+                ComPtr<IMMDevice> device;
+
+                tif(collection->Item(i, &device));
+
+                devices.push_back(device);
+            }
+        }
+
+        void CreateDeviceStruct(
+            vector<Device>& dst
+        ) {
+            vector< ComPtr<IMMDevice> > src;
+            CreateDeviceVector(src); 
+
+            dst.clear();
+            dst.reserve(src.size());
+
+            transform(
+                src.begin(), src.end(),
+                back_inserter(dst),
+                [](ComPtr<IMMDevice> device) {
+                    Device result;
+
+                    LPWSTR id;
+                    tif(device->GetId(&id));
+                    result.id = wstring(id);
+                    CoTaskMemFree(id);
+
+                    ComPtr<IPropertyStore> props;
+                    tif(device->OpenPropertyStore(STGM_READ, &props));
+
+                    PROPVARIANT name;
+                    PropVariantInit(&name);
+
+                    tif(props->GetValue(PKEY_Device_FriendlyName, &name));
+                    result.name = wstring(name.pwszVal);
+
+                    PropVariantClear(&name);
+
+                    return result;
+                }
+            );
+        }
+
         ComPtr<IMFMediaSource> CreateMediaSource(const wstring& url) {
             ComPtr<IMFSourceResolver> sourceResolver;
             tif(MFCreateSourceResolver(&sourceResolver));
@@ -62,6 +138,28 @@ namespace NativeSoundPlayer {
             tif(MFCreateAudioRendererActivate(&activate));
 
             return activate;
+        }
+
+        ComPtr<IMFMediaSink> CreateMediaSink(
+            const wstring& deviceId
+        ) {
+            ComPtr<IMFAttributes> attributes;
+            tif(MFCreateAttributes(&attributes, 1));
+            tif(attributes->SetString(MF_AUDIO_RENDERER_ATTRIBUTE_ENDPOINT_ID, deviceId.c_str()));
+
+            ComPtr<IMFMediaSink> mediaSink;
+            tif(MFCreateAudioRenderer(attributes.Get(), &mediaSink));
+
+            return mediaSink;
+        }     
+
+        ComPtr<IMFStreamSink> CreateStreamSink(
+            ComPtr<IMFMediaSink> mediaSink
+        ) {
+            ComPtr<IMFStreamSink> streamSink;
+            tif(mediaSink->GetStreamSinkByIndex(0, &streamSink));
+
+            return streamSink;
         }
 
         ComPtr<IMFStreamDescriptor> CreateStreamDescriptor(
@@ -127,14 +225,15 @@ namespace NativeSoundPlayer {
             return _CreateOutputNode(sink, streamId);
         }
 
-        ComPtr<IMFTopology> CreatePlayBackTopology(
-            ComPtr<IMFMediaSource> mediaSource
+        template <class T>
+        ComPtr<IMFTopology> _CreatePlayBackTopology(
+            ComPtr<IMFMediaSource> mediaSource,
+            ComPtr<T> sink
         ) {
             ComPtr<IMFTopology> topology;
             tif(MFCreateTopology(&topology));
 
             const auto pd = CreatePresentationDescriptor(mediaSource);
-            const auto activate = CreateMediaSinkActivate();
 
             DWORD numOfStreams;
             tif(pd->GetStreamDescriptorCount(&numOfStreams));
@@ -152,13 +251,29 @@ namespace NativeSoundPlayer {
                 const auto sourceNode = CreateSourceNode(mediaSource, pd, sd);
                 tif(topology->AddNode(sourceNode.Get()));
 
-                const auto outputNode = CreateOutputNode(activate, streamId);
+                const auto outputNode = CreateOutputNode(sink, streamId);
                 tif(topology->AddNode(outputNode.Get()));
 
                 tif(sourceNode->ConnectOutput(0, outputNode.Get(), 0));
             }
 
             return topology;
+        }
+        ComPtr<IMFTopology> CreatePlayBackTopology(
+            ComPtr<IMFMediaSource> mediaSource
+        ) {
+            const auto activate = CreateMediaSinkActivate();
+            
+            return _CreatePlayBackTopology(mediaSource, activate);
+        }
+        ComPtr<IMFTopology> CreatePlayBackTopology(
+            ComPtr<IMFMediaSource> mediaSource,
+            const wstring& deviceId
+        ) {
+            const auto mediaSink = CreateMediaSink(deviceId);
+            const auto streamSink = CreateStreamSink(mediaSink);
+
+            return _CreatePlayBackTopology(mediaSource, streamSink);
         }
 
         ComPtr<IMFMediaSession> CreateMediaSession(
@@ -205,9 +320,15 @@ namespace NativeSoundPlayer {
         MFStartup(MF_VERSION);
     }
 
+    void GetDevices(vector<Device>& devices) {
+        Win::CreateDeviceStruct(devices);
+    }
+
     void Play(const std::wstring& filename, const PlaySoundOption& option) {
         const auto mediaSource = Win::CreateMediaSource(filename);
-        const auto topology = Win::CreatePlayBackTopology(mediaSource);
+        const auto topology = option.useDefaultOutput
+            ? Win::CreatePlayBackTopology(mediaSource)
+            : Win::CreatePlayBackTopology(mediaSource, option.output.id);
         const auto mediaSession = Win::CreateMediaSession(topology);
 
         Win::StartMediaSession(mediaSession);
