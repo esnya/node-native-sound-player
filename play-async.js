@@ -1,7 +1,11 @@
 const SoundPlayer = require('./native-sound-player');
 
 process.on('message', message => {
-    SoundPlayer.playSync.apply(SoundPlayer, message.args);
-    process.send(null);
+    try {
+        SoundPlayer.playSync.apply(SoundPlayer, message.args);
+        process.send(null);
+    } catch (e) {
+        process.send(e);
+    }
     process.exit(0);
 });
