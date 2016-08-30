@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ukatama/node-native-play-sound.git"
+    "url": "git+https://github.com/ukatama/node-native-sound-player.git"
   },
   "keywords": [
     "sound",
@@ -21,9 +21,9 @@
   "author": "ukatama",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ukatama/node-native-play-sound/issues"
+    "url": "https://github.com/ukatama/node-native-sound-player/issues"
   },
-  "homepage": "https://github.com/ukatama/node-native-play-sound#readme",
+  "homepage": "https://github.com/ukatama/node-native-sound-player#readme",
   "dependencies": {
     "bindings": "^1.2.1",
     "nan": "^2.4.0"
