@@ -1,0 +1,31 @@
+{
+  "name": "native-sound-player",
+  "version": "0.1.0",
+  "description": "Simmple sound player for Node.js",
+  "main": "native-sound-player.js",
+  "scripts": {
+    "test": "node examples/01-simple.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ukatama/node-native-play-sound.git"
+  },
+  "keywords": [
+    "sound",
+    "media-foundation",
+    "mediafoundation",
+    "native",
+    "audio"
+  ],
+  "author": "ukatama",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ukatama/node-native-play-sound/issues"
+  },
+  "homepage": "https://github.com/ukatama/node-native-play-sound#readme",
+  "dependencies": {
+    "bindings": "^1.2.1",
+    "nan": "^2.4.0"
+  },
+  "gypfile": true
+}
