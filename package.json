@@ -1,7 +1,7 @@
 {
   "name": "native-sound-player",
   "version": "0.1.0",
-  "description": "Simmple sound player for Node.js",
+  "description": "Simple sound player for Node.js",
   "main": "native-sound-player.js",
   "scripts": {
     "test": "node examples/01-simple.js"
