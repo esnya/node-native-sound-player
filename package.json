@@ -4,7 +4,8 @@
   "description": "Simple sound player for Node.js",
   "main": "native-sound-player.js",
   "scripts": {
-    "test": "node examples/01-simple.js"
+    "test": "node examples/01-simple.js",
+    "version": "update-changelog && git add CHANGELOG.md"
   },
   "repository": {
     "type": "git",
@@ -27,5 +28,8 @@
     "bindings": "^1.2.1",
     "nan": "^2.4.0"
   },
-  "gypfile": true
+  "gypfile": true,
+  "devDependencies": {
+    "update-changelog": "^1.0.1"
+  }
 }
