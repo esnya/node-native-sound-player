@@ -1,26 +1,55 @@
 const NativeWrapper = require('bindings')('wrapper');
-const fork = require('child_process').fork;
-const path = require('path');
-
 Object.assign(module.exports, NativeWrapper);
 
-module.exports.playSync = function playSync(filename, options) {
-    return NativeWrapper.play(filename, options || {});
+module.exports.play = function play(filename, options) {
+    let stop;
+    const promise = new Promise((resolve, reject) => {
+        try {
+            let handle;
+
+            const release = function _release() {
+                try {
+                    if (handle) {
+                        NativeWrapper.release(handle);
+                        handle = null;
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            };
+
+            stop = function _stop() {
+                try {
+                    if (handle) {
+                        NativeWrapper.stop(handle);
+                        release();
+                    }
+                } catch (e) {
+                    reject(e);
+                }
+            };
+
+            handle = NativeWrapper.play(filename, options || {});
+
+            const timer = setInterval(() => {
+                if (!handle) {
+                    clearTimeout(timer);
+                } else if (!NativeWrapper.getIsPlaying(handle)) {
+                    clearTimeout(timer);
+                    release();
+                    resolve();
+                }
+            }, 100);
+        } catch (e) {
+            reject(e);
+        }
+    });
+
+    promise.stop = stop;
+
+    return promise;
 };
+
 module.exports.getDevices = function getDevices() {
     return NativeWrapper.getDevices();
-};
-
-const PlayAsync = path.join(__dirname, 'play-async.js');
-module.exports.play = function play(filename, options) {
-    return new Promise((resolve, reject) => {
-        const child = fork(PlayAsync);
-        child.send({ args: [filename, options] });
-        child.on('message', e => {
-            if (e) reject(e);
-            else resolve();
-
-            child.kill();
-        });
-    });
 };

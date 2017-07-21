@@ -276,10 +276,10 @@ namespace NativeSoundPlayer {
             return _CreatePlayBackTopology(mediaSource, streamSink);
         }
 
-        ComPtr<IMFMediaSession> CreateMediaSession(
+        IMFMediaSession* CreateMediaSession(
             ComPtr<IMFTopology> topology
         ) {
-            ComPtr<IMFMediaSession> mediaSession;
+            IMFMediaSession* mediaSession;
             tif(MFCreateMediaSession(nullptr, &mediaSession));
 
             mediaSession->SetTopology(0, topology.Get());
@@ -287,7 +287,7 @@ namespace NativeSoundPlayer {
             return mediaSession;
         }
 
-        void StartMediaSession(ComPtr<IMFMediaSession> mediaSession) {
+        void StartMediaSession(IMFMediaSession* mediaSession) {
             PROPVARIANT start;
             PropVariantInit(&start);
 
@@ -296,22 +296,24 @@ namespace NativeSoundPlayer {
             PropVariantClear(&start);
         }
 
-        void WatchMediaSessionEvent(ComPtr<IMFMediaSession> mediaSession) {
+        bool GetIsPlaying(IMFMediaSession* mediaSession) {
             while (1) {
                 ComPtr<IMFMediaEvent> event;
-                tif(mediaSession->GetEvent(0, &event));
+                auto hr = mediaSession->GetEvent(MF_EVENT_FLAG_NO_WAIT, &event);
+
+                if (hr == MF_E_NO_EVENTS_AVAILABLE) return true;
+
+                tif(hr);
 
                 MediaEventType type;
                 tif(event->GetType(&type));
 
-                switch (type)
-                {
-                case MESessionEnded:
-                    return;
-                default:
-                    break;
-                }
+                if (type == MESessionEnded) return false;
             }
+        }
+
+        void StopMediaSession(IMFMediaSession* mediaSession) {
+            tif(mediaSession->Stop());
         }
     }
 
@@ -324,7 +326,7 @@ namespace NativeSoundPlayer {
         Win::CreateDeviceStruct(devices);
     }
 
-    void Play(const std::wstring& filename, const PlaySoundOption& option) {
+    void* Play(const std::wstring& filename, const PlaySoundOption& option) {
         const auto mediaSource = Win::CreateMediaSource(filename);
         const auto topology = option.useDefaultOutput
             ? Win::CreatePlayBackTopology(mediaSource)
@@ -332,6 +334,22 @@ namespace NativeSoundPlayer {
         const auto mediaSession = Win::CreateMediaSession(topology);
 
         Win::StartMediaSession(mediaSession);
-        Win::WatchMediaSessionEvent(mediaSession);
+
+        return reinterpret_cast<void*>(mediaSession);
+    }
+
+    bool GetIsPlaying(void* handle) {
+        const auto mediaSession = reinterpret_cast<IMFMediaSession*>(handle);
+        return Win::GetIsPlaying(mediaSession);
+    }
+
+    void Stop(void* handle) {
+        const auto mediaSession = reinterpret_cast<IMFMediaSession*>(handle);
+        Win::StopMediaSession(mediaSession);
+    }
+
+    void Release(void* handle) {
+        const auto mediaSession = reinterpret_cast<IMFMediaSession*>(handle);
+        mediaSession->Release();        
     }
 }

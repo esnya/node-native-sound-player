@@ -37,7 +37,68 @@ void WrapperPlay(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     }
 
     try {
-        NativeSoundPlayer::Play(filename, option);
+        const auto handle = NativeSoundPlayer::Play(filename, option);
+        Local<Number> num = Nan::New(static_cast<double>(reinterpret_cast<size_t>(handle)));
+        info.GetReturnValue().Set(num);
+    } catch (const RuntimeError& e) {
+        Nan::ThrowError(encode(e.message()));
+    }
+}
+
+void WrapperStop(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1) {
+        Nan::ThrowTypeError("Wrong number of arguments");
+        return;
+    }
+
+    if (!info[0]->IsNumber()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
+    }
+
+    const auto handle = static_cast<size_t>(info[0]->NumberValue());
+    try {
+        NativeSoundPlayer::Stop(reinterpret_cast<void*>(handle));
+    } catch (const RuntimeError& e) {
+        Nan::ThrowError(encode(e.message()));
+    }
+}
+
+void WrapperRelease(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1) {
+        Nan::ThrowTypeError("Wrong number of arguments");
+        return;
+    }
+
+    if (!info[0]->IsNumber()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
+    }
+
+    const auto handle = static_cast<size_t>(info[0]->NumberValue());
+    try {
+        NativeSoundPlayer::Release(reinterpret_cast<void*>(handle));
+    } catch (const RuntimeError& e) {
+        Nan::ThrowError(encode(e.message()));
+    }
+}
+
+void WrapperGetIsPlaying(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1) {
+        Nan::ThrowTypeError("Wrong number of arguments");
+        return;
+    }
+
+    if (!info[0]->IsNumber()) {
+        Nan::ThrowTypeError("Wrong arguments");
+        return;
+    }
+
+    const auto handle = static_cast<size_t>(info[0]->NumberValue());
+    try {
+        const auto isPlaying = NativeSoundPlayer::GetIsPlaying(reinterpret_cast<void*>(handle));
+        Local<Boolean> b = Nan::New(isPlaying);
+        info.GetReturnValue().Set(b);
     } catch (const RuntimeError& e) {
         Nan::ThrowError(encode(e.message()));
     }
@@ -70,6 +131,12 @@ void Init(v8::Local<v8::Object> exports) {
 
     exports->Set(Nan::New("play").ToLocalChecked(),
         Nan::New<FunctionTemplate>(WrapperPlay)->GetFunction());
+    exports->Set(Nan::New("stop").ToLocalChecked(),
+        Nan::New<FunctionTemplate>(WrapperStop)->GetFunction());
+    exports->Set(Nan::New("getIsPlaying").ToLocalChecked(),
+        Nan::New<FunctionTemplate>(WrapperGetIsPlaying)->GetFunction());
+    exports->Set(Nan::New("release").ToLocalChecked(),
+        Nan::New<FunctionTemplate>(WrapperRelease)->GetFunction());
 
     exports->Set(Nan::New("getDevices").ToLocalChecked(),
         Nan::New<FunctionTemplate>(WrapperGetDevices)->GetFunction());

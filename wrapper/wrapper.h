@@ -19,7 +19,10 @@ namespace NativeSoundPlayer {
 
     void Init();
     void GetDevices(std::vector<Device>& devices);
-    void Play(const std::wstring& filename, const PlaySoundOption& option);
+    void* Play(const std::wstring& filename, const PlaySoundOption& option);
+    void Stop(void* handle);
+    bool GetIsPlaying(void* handle);
+    void Release(void* handle);
 
     class RuntimeError : std::exception {
     public:

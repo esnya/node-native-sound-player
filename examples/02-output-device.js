@@ -8,7 +8,7 @@ devices.forEach(device => {
     console.log('id:', device.id);
     console.log('name:', device.name);
 
-    SoundPlayer.playSync(`${__dirname}/sample.mp3`, {
+    SoundPlayer.play(`${__dirname}/sample.mp3`, {
         output: {
             id: device.id,
         },

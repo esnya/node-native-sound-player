@@ -4,6 +4,8 @@
   "description": "Simple sound player for Node.js",
   "main": "native-sound-player.js",
   "scripts": {
+    "configure": "node-gyp configure",
+    "build": "node-gyp build",
     "test": "node examples/01-simple.js",
     "version": "update-changelog && git add CHANGELOG.md"
   },
